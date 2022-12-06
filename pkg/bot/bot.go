@@ -19,7 +19,12 @@ func SendUpdate(config *TelegramCredentials, product *scraper.Product) error {
 		return err
 	}
 
-	message := fmt.Sprintf(`<a href="%s"><b>%s</b></a> <b> Back in stock </b> €%v`, fmt.Sprintf("https://eu.store.ui.com/%s", product.Link), product.Name, product.Price)
+	stockMsg := "Back in stock"
+	if !product.Available {
+		stockMsg = "Out of stock"
+	}
+
+	message := fmt.Sprintf(`<a href="%s"><b>%s</b></a> <b> %s </b> $%v`, fmt.Sprintf("https://store.ui.com/%s", product.Link), product.Name, stockMsg, product.Price)
 
 	for _, chatID := range config.ChatIDs {
 		msg := tgbotapi.NewMessage(chatID, message)

@@ -39,7 +39,7 @@ func GetProducts(config UbiquitiCredentials) (Products, error) {
 		return nil, err
 	}
 
-	products := getProducts(c)
+	products := getAllProducts(c)
 	return products, nil
 }
 
@@ -77,7 +77,7 @@ func login(c *colly.Collector, config UbiquitiCredentials) error {
 		return fmt.Errorf("Error logging in with token: %v", err)
 	}
 
-	err = c.Request("GET", "https://sso.ubnt.com/api/sso/v1/shopify_login?region=eu", nil, nil, nil)
+	err = c.Request("GET", "https://sso.ubnt.com/api/sso/v1/shopify_login?region=us", nil, nil, nil)
 	if err != nil {
 		return fmt.Errorf("Error logging in to shopify: %v", err)
 	}
@@ -85,7 +85,13 @@ func login(c *colly.Collector, config UbiquitiCredentials) error {
 	return nil
 }
 
-func getProducts(c *colly.Collector) Products {
+func getAllProducts(c *colly.Collector) Products {
+	products := getProducts("https://store.ui.com/collections/unifi-network-unifi-os-consoles", c)
+	return append(products, getProducts("https://store.ui.com/collections/early-access", c)...)
+}
+
+func getProducts(url string, c *colly.Collector) Products {
+	fmt.Printf("Get products %s \n", url)
 	products := Products{}
 
 	c.OnHTML("body", func(body *colly.HTMLElement) {
@@ -99,10 +105,12 @@ func getProducts(c *colly.Collector) Products {
 
 			product := Product{}
 			title := dom.Find(".comProductTile__title > .smaller > .link")
-			price := dom.Find(".price")
+			price := dom.Find(".comProductTile__price > span")
 			link := dom.Find(".comProductTile")
 
+			// fmt.Printf("title=%s price=%d link=%s\n", title, price, link)
 			if link.Length() < 1 && title.Length() < 1 || price.Length() < 1 {
+				fmt.Printf("Skipping link : %s\n", link.AttrOr("href", "No link found"))
 				continue
 			}
 
@@ -110,8 +118,14 @@ func getProducts(c *colly.Collector) Products {
 				product.Name = s.Text()
 			})
 
-			if price, err := strconv.ParseFloat(price.AttrOr("data-price-cents", "0"), 64); err == nil {
-				product.Price = price / 100
+			if !strings.Contains(product.Name, "Special Edition") {
+				continue
+			}
+
+			// fmt.Printf("%s Price=%s\n", link.AttrOr("href", "No link found"), price.Text())
+
+			if price, err := strconv.ParseFloat(strings.ReplaceAll(price.Text(), "$", ""), 64); err == nil {
+				product.Price = price
 			}
 
 			soldOut := dom.Find(".comProductTile__soldOut")
@@ -122,7 +136,8 @@ func getProducts(c *colly.Collector) Products {
 		}
 	})
 
-	c.Visit("https://eu.store.ui.com/collections/early-access")
+	// c.Visit("https://store.ui.com/collections/early-access")
+	c.Visit(url)
 
 	return products
 }

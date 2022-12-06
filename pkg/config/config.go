@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"log"
@@ -15,7 +15,7 @@ type Config struct {
 	Telegram  bot.TelegramCredentials
 }
 
-func getConfig() *Config {
+func GetConfig() *Config {
 	ubiquitiUsername := os.Getenv("UBIQUITI_USERNAME")
 	if ubiquitiUsername == "" {
 		log.Fatalf("Required environment variable UBIQUITI_USERNAME not set")
